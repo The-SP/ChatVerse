@@ -1,0 +1,39 @@
+{% include 'base.html' %}
+
+{% block content %}
+<br>
+<div class="card mx-auto width">
+    <div class="card-body bg-dark">
+        {% for chat in chats %}
+            <ul class="list-group list-group-flush mb-2">
+                    <li class="list-group-item">
+                    {% if request.user.username == chat.user.username %}
+                            <em class="right text-danger">{{chat.user}}</em> 
+                            <br>
+                            <span class="right px-5 text-success"><b>{{chat.message}}</b></span>
+                            <br>
+                            <small class="right text-muted">{{chat.date}}</small>
+                    {% else %}
+                        <em class="orange-color">{{chat.user}}</em> 
+                        <br>
+                        <span class="px-5 text-primary"><b>{{chat.message}}</b></span>
+                        <br>
+                        <small class="text-muted">{{chat.date}}</small>
+                    {% endif %}
+                </li>
+            </ul>
+        {% endfor %}
+        <form method="POST">
+            {% csrf_token %}
+            <div class="row mt-4 align-items-end">
+                <div class="col-lg-10">
+                    <input type="text" name="message" class="form-control form-control-lg" placeholder="Message" required autofocus>
+                </div>
+                <div class="col-lg-2 mt-3">
+                    <input class="btn btn-lg btn-success w-100" value="Send" type="submit">
+                </div>
+            </div> 
+        </form>
+    </div>
+</div>
+{% endblock %}

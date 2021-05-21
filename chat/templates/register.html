@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="card mx-auto my-5" style="width: 25rem;">
+    <div class="card-body">
+
+        <!-- display any errors in form submisson -->
+        {% if form.errors %}
+        {% for field in form %}
+            {% for error in field.errors %}
+            <div class="alert alert-danger">
+                    {{field.label}}: {{ error|escape }}
+                </div> 
+            {% endfor %}
+        {% endfor %}
+        {% endif %}
+
+        <form method='POST'>
+            {% csrf_token %}
+            <div class="form-group mb-4">
+                <input type="text" name="username" class="form-control form-control-lg" placeholder="Username" required autofocus>
+            </div>  
+            <div class="form-group mb-4">
+                <input type="password" name="password1" class="form-control form-control-lg" placeholder="Password" required>
+            </div> 
+            <div class="form-group mb-4">
+                <input type="password" name="password2" class="form-control form-control-lg" placeholder=" Confirm Password" required>
+            </div> 
+            <input class="btn btn-success w-100" type="submit" value="Create Account">
+            </form>
+            <div class="pt-3">
+                <small class="text-muted">
+                    Already have an account?
+                    <a class="ml-2" href="{% url 'login' %}">Sign In</a>
+                </small>
+            </div>
+    </div>
+</div>
+
+{% endblock %}

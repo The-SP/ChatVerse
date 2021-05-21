@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="card mx-auto my-5" style="width: 25rem;">
+    <div class="card-body">
+        <form method='POST'>
+            {% csrf_token %}
+            <div class="form-group mb-4">
+                <input type="text" name="username" class="form-control form-control-lg" placeholder="Username" required autofocus>
+            </div>    
+            <div class="form-group">
+                <input type="password" name="password" class="form-control form-control-lg" placeholder="Password" required>
+            </div> 
+            <input class="btn my-3 btn-success w-100" type="submit" value="Sign In">
+        </form>
+        <a class="btn btn-secondary w-100" href="{% url 'anonymous' %}">Anonymous Login</a>
+        
+        <div class="pt-3">
+            <small class="text-muted">
+                Don't have an account?
+                <a class="ml-2" href="{% url 'register' %}">Create new account!</a>
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}

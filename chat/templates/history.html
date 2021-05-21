@@ -1,0 +1,20 @@
+{% include 'base.html' %}
+
+{% block content %}
+<br>
+<div class="card mx-auto width">
+    <div class="card-body bg-dark">
+        {% for chat in chats %}
+        <ul class="list-group list-group-flush mb-2">
+            <li class="list-group-item">
+                <em class="text-danger">{{chat.user}}</em> 
+                <br>
+                <span class="px-5 text-success"><b>{{chat.message}}</span></b></span>
+                <br>
+                <small class="text-muted">{{chat.date}}</small>
+            </li>
+        </ul>
+        {% endfor %}
+
+    </div>
+</div>{% endblock %}
