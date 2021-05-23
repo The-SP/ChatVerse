@@ -66,7 +66,7 @@ def chat(request):
             form.save()
             return redirect('chat')
     else:
-        chats = Chat.objects.all()
+        chats = Chat.objects.all().order_by('date')
         context = {'chats': chats}
         return render(request, 'chat.html', context)
 
