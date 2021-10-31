@@ -8,10 +8,12 @@
         <ul class="list-group list-group-flush mb-2">
             <li class="list-group-item">
                 <em class="text-danger">{{chat.user}}</em> 
+                <small class="right text-muted">({{ chat.room.name }})</small>
                 <br>
                 <span class="px-5 text-success"><b>{{chat.message}}</span></b></span>
+                <a href="{% url 'delete' chat.id %}" class="right text-muted"><i class="fas fa-trash"></i></a>
                 <br>
-                <small class="text-muted">{{chat.date}}</small>
+                <small class="text-muted">{{chat.date|timesince}} ago</small>
             </li>
         </ul>
         {% endfor %}

@@ -8,21 +8,32 @@
             <ul class="list-group list-group-flush mb-2">
                     <li class="list-group-item">
                     {% if request.user.username == chat.user.username %}
-                            <em class="right text-danger">{{chat.user}}</em> 
+                            <em class="right text-danger">
+                                {% if chat.room.host == chat.user %}
+                                    <i class="fas fa-crown"></i> 
+                                {% endif %}
+                                {{chat.user}}
+                            </em> 
                             <br>
                             <span class="right px-5 text-success"><b>{{chat.message}}</b></span>
                             <br>
-                            <small class="right text-muted">{{chat.date}}</small>
+                            <small class="right text-muted">{{chat.date|timesince}} ago</small>
                     {% else %}
-                        <em class="orange-color">{{chat.user}}</em> 
+                        <em class="orange-color">
+                            {% if chat.room.host == chat.user %}
+                                <i class="fas fa-crown"></i> 
+                            {% endif %}
+                            {{chat.user}}
+                        </em> 
                         <br>
                         <span class="px-5 text-primary"><b>{{chat.message}}</b></span>
                         <br>
-                        <small class="text-muted">{{chat.date}}</small>
+                        <small class="text-muted">{{chat.date|timesince}} ago</small>
                     {% endif %}
                 </li>
             </ul>
         {% endfor %}
+
         <form method="POST">
             {% csrf_token %}
             <div class="row mt-4 align-items-end">
@@ -34,6 +45,7 @@
                 </div>
             </div> 
         </form>
+        
     </div>
 </div>
 {% endblock %}
