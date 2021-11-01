@@ -13,7 +13,7 @@ class Room(models.Model):
 class Chat(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
-    message = models.CharField(max_length=256)
+    message = models.TextField()
     date = models.DateTimeField(default=timezone.localtime)
 
     class Meta:
