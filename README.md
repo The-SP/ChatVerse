@@ -2,7 +2,7 @@
 An online chat web app made using Django
 
 ## Link to website
-[Kurakani website](https://kurokani.herokuapp.com/)
+[Kurakani website](https://kuraakaani.herokuapp.com/)
 
 ## Setup
 ```bash
