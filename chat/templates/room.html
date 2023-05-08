@@ -1,51 +1,122 @@
-{% include 'base.html' %}
-
-{% block content %}
-<br>
+s{% include 'base.html' %} {% block content %}
+<br />
 <div class="card mx-auto width">
-    <div class="card-body bg-dark">
-        {% for chat in chats %}
-            <ul class="list-group list-group-flush mb-2">
-                    <li class="list-group-item">
-                    {% if request.user.username == chat.user.username %}
-                            <em class="right text-danger">
-                                {% if chat.room.host == chat.user %}
-                                    <i class="fas fa-crown"></i> 
-                                {% endif %}
-                                {{chat.user}}
-                            </em> 
-                            <br>
-                            <span class="right px-5 text-success"><b>{{chat.message}}</b></span>
-                            <br>
-                            <small class="right text-muted">{{chat.date|timesince}} ago</small>
-                    {% else %}
-                        <em class="orange-color">
-                            {% if chat.room.host == chat.user %}
-                                <i class="fas fa-crown"></i> 
-                            {% endif %}
-                            {{chat.user}}
-                        </em> 
-                        <br>
-                        <span class="px-5 text-primary"><b>{{chat.message}}</b></span>
-                        <br>
-                        <small class="text-muted">{{chat.date|timesince}} ago</small>
-                    {% endif %}
-                </li>
-            </ul>
-        {% endfor %}
-
-        <form method="POST">
-            {% csrf_token %}
-            <div class="row mt-4 align-items-end">
-                <div class="col-lg-10">
-                    <input type="text" name="message" class="form-control form-control-lg" placeholder="Message" required autofocus>
-                </div>
-                <div class="col-lg-2 mt-3">
-                    <input class="btn btn-lg btn-success w-100" value="Send" type="submit">
-                </div>
-            </div> 
-        </form>
-        
+  <div class="card-body bg-dark">
+    <div id="room-{{room.id}}" class="message-bold">
+      {% for chat in chats %}
+      <ul class="list-group list-group-flush mb-2">
+        <li class="list-group-item">
+          {% if request.user.username == chat.user.username %}
+          <em class="right text-danger">
+            {% if chat.room.host == chat.user %}
+            <i class="fas fa-crown"></i>
+            {% endif %} {{chat.user}}
+          </em>
+          <br />
+          <span class="right px-5 text-success"><b>{{chat.message}}</b></span>
+          <br />
+          <small class="right text-muted">{{chat.date|timesince}} ago</small>
+          {% else %}
+          <em class="orange-color">
+            {% if chat.room.host == chat.user %}
+            <i class="fas fa-crown"></i>
+            {% endif %} {{chat.user}}
+          </em>
+          <br />
+          <span class="px-5 text-primary"><b>{{chat.message}}</b></span>
+          <br />
+          <small class="text-muted">{{chat.date|timesince}} ago</small>
+          {% endif %}
+        </li>
+      </ul>
+      {% endfor %}
     </div>
+
+    <form method="POST">
+      {% csrf_token %}
+      <div class="row mt-4 align-items-end">
+        <div class="col-lg-10">
+          <input
+            type="text"
+            id="input-message"
+            name="message"
+            class="form-control form-control-lg"
+            placeholder="Message"
+            required
+            autofocus
+          />
+        </div>
+        <div class="col-lg-2 mt-3">
+          <input
+            class="btn btn-lg btn-success w-100"
+            id="submit"
+            value="Send"
+            type="submit"
+          />
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
+
+{{ request.user.username|json_script:"currentUser_username" }}
+<script>
+    const roomID = {{room.id}}
+    const currentUser_username = JSON.parse(document.getElementById('currentUser_username').textContent);
+
+    const chatSocket = new WebSocket(
+        'ws://' +
+        window.location.host +
+        '/ws/room/' +
+        roomID + '/'
+    )
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly.')
+    }
+
+    document.querySelector("#submit").onclick = function (e) {
+        const messageInputDom = document.querySelector('#input-message')
+        const message = messageInputDom.value
+        chatSocket.send(JSON.stringify({
+            'message': message,
+            'username': currentUser_username
+        }))
+    }
+
+    chatSocket.onmessage = function (event) {
+      const data = JSON.parse(event.data)
+      console.log("chatSocket onmessage = ", data.message)
+
+      const roomChatList = document.querySelector(`#room-${roomID}`)
+      const newItem = document.createElement('ul');
+      newItem.classList.add('list-group', 'list-group-flush', 'mb-2')
+      if (data.username === currentUser_username) {
+        newItem.innerHTML = `
+          <li class="list-group-item">
+            <em class="right text-danger">${data.username}</em>
+            <br />
+            <span class="right px-5 text-success">
+              <b>${data.message}</b>
+            </span>
+            <br />
+            <small class="right text-muted">just now</small>
+          </li>
+        `;
+      } else {
+        newItem.innerHTML = `
+          <li class="list-group-item">
+            <em class="orange-color">${data.username}</em>
+            <br />
+            <span class="px-5 text-primary">
+              <b>${data.message}</b>
+            </span>
+            <br />
+            <small class="text-muted">just now</small>
+          </li>
+        `;
+      }
+      roomChatList.appendChild(newItem)
+  }
+</script>
 {% endblock %}
