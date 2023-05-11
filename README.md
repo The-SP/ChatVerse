@@ -7,13 +7,17 @@ Kurakani is a real-time chat application built with Django and Channels. The app
 ```bash
 # 1. Clone this repo
 git clone https://github.com/The-SP/Kurakani.git
+
 # 2. Install the required dependencies
 pip install -r requirements.txt
+
 # 3. Apply the database migrations
 py manage.py makemigrations
 py manage.py migrate
+
 # 4. Run the development server
 py manage.py runserver
+
 # 5. Navigate to 'http://localhost:8000' to access the application
 ```
 
