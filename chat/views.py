@@ -72,18 +72,9 @@ def history(request):
 
 
 def room(request, pk):
-    if request.method == "POST":
-        message = request.POST.get('message')
-        Chat.objects.create(
-            user=request.user,
-            room_id=pk,
-            message=message
-        )
-        return redirect('room', pk)
-    else:
-        chats = Chat.objects.all().filter(room_id=pk)
-        context = {'chats': chats, 'room':Room.objects.get(id=pk)}
-        return render(request, 'room.html', context)
+    chats = Chat.objects.all().filter(room_id=pk)
+    context = {'chats': chats, 'room':Room.objects.get(id=pk)}
+    return render(request, 'room.html', context)
 
 
 @login_required(login_url='login')

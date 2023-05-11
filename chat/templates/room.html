@@ -32,8 +32,6 @@ s{% include 'base.html' %} {% block content %}
       {% endfor %}
     </div>
 
-    <form method="POST">
-      {% csrf_token %}
       <div class="row mt-4 align-items-end">
         <div class="col-lg-10">
           <input
@@ -47,15 +45,12 @@ s{% include 'base.html' %} {% block content %}
           />
         </div>
         <div class="col-lg-2 mt-3">
-          <input
+          <a
             class="btn btn-lg btn-success w-100"
-            id="submit"
-            value="Send"
-            type="submit"
-          />
+            id="chat-submit"
+          >Send</a>
         </div>
       </div>
-    </form>
   </div>
 </div>
 
@@ -63,6 +58,7 @@ s{% include 'base.html' %} {% block content %}
 <script>
     const roomID = {{room.id}}
     const currentUser_username = JSON.parse(document.getElementById('currentUser_username').textContent);
+    const messageInputDom = document.querySelector('#input-message')
 
     const chatSocket = new WebSocket(
         'ws://' +
@@ -75,13 +71,22 @@ s{% include 'base.html' %} {% block content %}
         console.error('Chat socket closed unexpectedly.')
     }
 
-    document.querySelector("#submit").onclick = function (e) {
-        const messageInputDom = document.querySelector('#input-message')
+    // submit message if 'Enter' key is pressed
+    messageInputDom.onkeyup = function(e) {
+        if (e.keyCode === 13) {
+          document.querySelector('#chat-submit').click();
+        }
+      };
+
+    document.querySelector("#chat-submit").onclick = function (e) {
         const message = messageInputDom.value
         chatSocket.send(JSON.stringify({
             'message': message,
-            'username': currentUser_username
+            'username': currentUser_username,
+            'roomID': roomID
         }))
+        messageInputDom.value = ''
+        messageInputDom.focus()
     }
 
     chatSocket.onmessage = function (event) {
@@ -117,6 +122,14 @@ s{% include 'base.html' %} {% block content %}
         `;
       }
       roomChatList.appendChild(newItem)
+
+      scrollToBottom()
   }
+
+  // Scroll to bottom of chat messages
+  function scrollToBottom() {
+    document.querySelector("#chat-submit").scrollIntoView({behavior: 'smooth', block: 'end'})
+  }
+  scrollToBottom()
 </script>
 {% endblock %}
