@@ -1,6 +1,6 @@
-# KuraKani
+# ChatVerse
 
-Kurakani is a real-time chat application built with Django and Channels. The app allows users to create chat rooms and communicate with each other in real-time via WebSocket connections.
+ChatVerse is a real-time chat application built with Django and Channels. The app allows users to create chat rooms and communicate with each other in real-time via WebSocket connections.
 
 ## Setup
 

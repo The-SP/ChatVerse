@@ -73,7 +73,7 @@ s{% include 'base.html' %} {% block content %}
 
     // submit message if 'Enter' key is pressed
     messageInputDom.onkeyup = function(e) {
-        if (e.keyCode === 13) {
+        if (e.keyCode === 13 && messageInputDom.value) {
           document.querySelector('#chat-submit').click();
         }
       };
