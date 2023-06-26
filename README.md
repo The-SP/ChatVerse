@@ -6,7 +6,7 @@ ChatVerse is a real-time chat application built with Django and Channels. The ap
 
 ```bash
 # 1. Clone this repo
-git clone https://github.com/The-SP/Kurakani.git
+git clone https://github.com/The-SP/ChatVerse.git
 
 # 2. Install the required dependencies
 pip install -r requirements.txt
