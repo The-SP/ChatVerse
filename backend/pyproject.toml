@@ -1,0 +1,21 @@
+[project]
+name = "fast-api-auth"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "authlib>=1.5.2",
+    "bcrypt>=4.3.0",
+    "fastapi>=0.115.12",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
+    "passlib>=1.7.4",
+    "pydantic[email]>=2.11.3",
+    "python-dotenv>=1.1.0",
+    "python-jose>=3.4.0",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.40",
+    "starlette>=0.46.2",
+    "uvicorn>=0.34.2",
+]

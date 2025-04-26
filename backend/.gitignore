@@ -1,0 +1,29 @@
+# Python and FastAPI
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+env/
+env3/
+*.egg-info/
+/dist
+build/
+/htmlcov
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs and Databases
+*.log
+*.db
+test.db
+
+# Temporary files
+*~
+*.swp
+*.swo
+
+# Dependency management
+Pipfile.lock
