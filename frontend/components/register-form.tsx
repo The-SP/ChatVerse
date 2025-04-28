@@ -18,35 +18,44 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
-export function LoginForm({
+export function RegisterForm({
   className,
   ...props
 }: React.ComponentProps<'div'>) {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const { login } = useAuth();
+  const { register } = useAuth();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate password match
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(username, password);
-      toast.message('Login successful');
+      await register(username, email, password);
+      toast.message('Registration successful');
 
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
-      toast.error('Login failed');
+      toast.error('Registration failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleRegister = () => {
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/login/google`;
   };
 
@@ -54,47 +63,61 @@ export function LoginForm({
     <div className={cn('flex flex-col gap-6', className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
+          <CardTitle className="text-xl">Create an account</CardTitle>
           <CardDescription>
-            Enter your username below to login to your account
+            Enter your details below to create your account
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
-            <form onSubmit={handleLogin}>
+            <form onSubmit={handleRegister}>
               <div className="grid gap-6">
                 <div className="grid gap-3">
                   <Label htmlFor="username">Username</Label>
                   <Input
                     id="username"
                     type="text"
-                    placeholder="Enter username or email.."
+                    placeholder="Enter username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
                   />
                 </div>
                 <div className="grid gap-3">
-                  <div className="flex items-center">
-                    <Label htmlFor="password">Password</Label>
-                    <a
-                      href="#"
-                      className="ml-auto text-sm underline-offset-4 hover:underline"
-                    >
-                      Forgot your password?
-                    </a>
-                  </div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="password">Password</Label>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Enter your password"
+                    placeholder="Create a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                 </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Logging in...' : 'Login'}
+                  {isLoading ? 'Creating account...' : 'Create account'}
                 </Button>
               </div>
             </form>
@@ -108,7 +131,7 @@ export function LoginForm({
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={handleGoogleLogin}
+                onClick={handleGoogleRegister}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -133,13 +156,13 @@ export function LoginForm({
                     d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0C79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"
                   ></path>
                 </svg>
-                Login with Google
+                Sign up with Google
               </Button>
             </div>
             <div className="text-center text-sm">
-              Don&apos;t have an account?{' '}
-              <Link href="/auth/register" className="underline underline-offset-4">
-                Sign up
+              Already have an account?{' '}
+              <Link href="/auth/login" className="underline underline-offset-4">
+                Login
               </Link>
             </div>
           </div>
