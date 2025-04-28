@@ -123,8 +123,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         data={"sub": user.username}, expires_delta=access_token_expires
     )
 
-    # You can customize the redirect URL based on your frontend needs
-    response = RedirectResponse(url=f"/auth/success?token={access_token}")
+    # Redirect to the frontend with the token
+    frontend_url = settings.FRONTEND_URL
+    response = RedirectResponse(url=f"{frontend_url}/auth/success?token={access_token}")
     return response
 
 

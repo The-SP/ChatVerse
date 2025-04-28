@@ -27,6 +27,7 @@ interface AuthContextType {
     email: string,
     password: string,
   ) => Promise<void>;
+  handleOAuthSuccess: (token: string) => Promise<void>;
   logout: () => void;
   fetchUserProfile: () => Promise<void>;
 }
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // Adjust this endpoint to match your backend API
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/users/me`,
         {
@@ -185,6 +187,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/auth/login');
   };
 
+  const handleOAuthSuccess = async (token: string) => {
+    // Prevent duplicate processing
+    if (token === localStorage.getItem('token') && user !== null) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Update state and localStorage
+      setToken(token);
+      localStorage.setItem('token', token);
+
+      // Fetch user profile once
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/users/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+
+      const userData = await response.json();
+      setUser(userData);
+
+      return;
+    } catch (error) {
+      console.error('OAuth authentication error:', error);
+      // If something goes wrong, clear the token
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     user,
     token,
@@ -192,6 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user && !!token,
     login,
     register,
+    handleOAuthSuccess,
     logout,
     fetchUserProfile: () => fetchUserProfile(),
   };
