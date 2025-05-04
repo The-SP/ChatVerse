@@ -1,65 +1,35 @@
-'use client';
+import { AppSidebar } from "../../components/app-sidebar"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-
-export default function DashboardPage() {
-  const { user, logout } = useAuth();
-
+export default function Page() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardHeader>
-          <CardTitle className="text-2xl">Dashboard</CardTitle>
-          <CardDescription>Welcome to your dashboard</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-xl font-medium">User Profile</h2>
-              {user ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      Username
-                    </p>
-                    <p>{user.username}</p>
-                  </div>
-                  {user.email && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Email</p>
-                      <p>{user.email}</p>
-                    </div>
-                  )}
-                  {user.full_name && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">
-                        Full Name
-                      </p>
-                      <p>{user.full_name}</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p>Loading user information...</p>
-              )}
-            </div>
-
-            <div className="pt-4">
-              <Button onClick={logout} variant="destructive">
-                Logout
-              </Button>
-            </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Chat Application</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+            <div className="aspect-video rounded-xl bg-muted/50" />
+            <div className="aspect-video rounded-xl bg-muted/50" />
+            <div className="aspect-video rounded-xl bg-muted/50" />
+          </div>
+          <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
 }
