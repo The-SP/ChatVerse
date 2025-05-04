@@ -3,7 +3,6 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from ..auth import jwt
@@ -11,6 +10,7 @@ from ..auth import oauth as oauth_module
 from ..auth import utils
 from ..config import settings
 from ..database import get_db
+from ..schemas.user import UserCreate
 
 router = APIRouter()
 
@@ -32,12 +32,6 @@ async def login_for_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
-
-
-class UserCreate(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
-    email: EmailStr
-    password: str = Field(..., min_length=8)
 
 
 @router.post("/register", response_model=dict)

@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..database import Base
@@ -25,3 +26,13 @@ class User(Base):
     # Additional profile data that might come from social providers
     full_name = Column(String, nullable=True)
     bio = Column(String, nullable=True)
+
+    # Relationships
+    sent_messages = relationship(
+        "DirectMessage", foreign_keys="DirectMessage.sender_id", back_populates="sender"
+    )
+    received_messages = relationship(
+        "DirectMessage",
+        foreign_keys="DirectMessage.receiver_id",
+        back_populates="receiver",
+    )
