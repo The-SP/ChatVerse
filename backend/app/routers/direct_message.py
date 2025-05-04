@@ -21,10 +21,7 @@ from ..models.user import User
 from ..schemas.direct_message import DirectMessageCreate, DirectMessageResponse
 from ..schemas.user import UserResponse
 
-router = APIRouter(
-    prefix="/direct-messages",
-    tags=["direct-messages"],
-)
+router = APIRouter()
 
 
 # Connection Manager for WebSockets
@@ -245,14 +242,8 @@ async def get_unread_count(
 
 
 # Function to authenticate WebSocket connections
-async def get_user_from_token(websocket: WebSocket, db: Session = Depends(get_db)):
+async def get_user_from_token(websocket: WebSocket, token: str, db: Session = Depends(get_db)):
     try:
-        # Get token from query parameters
-        token = websocket.query_params.get("token")
-        if not token:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return None
-
         # Use the same JWT decoding logic from your jwt.py
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
@@ -275,19 +266,19 @@ async def get_user_from_token(websocket: WebSocket, db: Session = Depends(get_db
 
 
 # WebSocket route for real-time messaging
-@router.websocket("/ws/{user_id}")
+@router.websocket("/ws/")
 async def websocket_endpoint(
     websocket: WebSocket,
-    user_id: int,
+    token: str,
     db: Session = Depends(get_db),
 ):
     # Authenticate the connection
-    user = await get_user_from_token(websocket, db)
-    if not user or user.id != user_id:
-        # If authentication fails or user_id doesn't match the token
+    user = await get_user_from_token(websocket, token, db)
+    if not user:
+        # If authentication fails
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
-
+    user_id = user.id
     # Connect using the connection manager
     await manager.connect(user_id, websocket)
 

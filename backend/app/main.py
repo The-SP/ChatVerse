@@ -4,7 +4,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .config import settings
 from .database import Base, engine
-from .routers import auth, users
+from .routers import auth, users, direct_message
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 # Mount routers
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(direct_message.router, prefix="/direct-messages", tags=["direct-messages"])
 
 
 @app.get("/")
