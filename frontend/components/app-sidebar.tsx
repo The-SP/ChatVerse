@@ -1,10 +1,10 @@
 "use client"
 
 import type * as React from "react"
-import { MessageSquare, User } from "lucide-react"
+import { MessageSquare } from "lucide-react"
 
 import { NavMain } from "./nav-main"
-import { NavProjects } from "./nav-projects"
+import { NavRecentChats } from "./nav-recent-chats"
 import { NavUser } from "./nav-user"
 import {
   Sidebar,
@@ -40,23 +40,6 @@ const data = {
       url: "#",
     },
   ],
-  projects: [
-    {
-      name: "Sarah Johnson",
-      url: "#",
-      icon: User,
-    },
-    {
-      name: "Michael Chen",
-      url: "#",
-      icon: User,
-    },
-    {
-      name: "Alex Rodriguez",
-      url: "#",
-      icon: User,
-    },
-  ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -80,7 +63,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        <NavRecentChats />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { User } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -20,7 +21,7 @@ interface ConversationUser {
   full_name?: string;
 }
 
-export function NavProjects() {
+export function NavRecentChats() {
   const { token } = useAuth();
   const [conversations, setConversations] = useState<ConversationUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +65,14 @@ export function NavProjects() {
             {[1, 2, 3].map((_, index) => (
               <SidebarMenuItem key={index}>
                 <SidebarMenuButton disabled>
-                  <div className="size-4 rounded-full bg-muted" />
+                  <Avatar className="size-4">
+                    <AvatarFallback className="rounded-full">
+                      <div
+                        className="animate-pulse rounded-full bg-muted"
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    </AvatarFallback>
+                  </Avatar>
                   <span>Loading...</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -84,20 +92,22 @@ export function NavProjects() {
             conversations.map((user) => (
               <SidebarMenuItem key={user.id}>
                 <SidebarMenuButton asChild>
-                  <a href={`/chat/${user.id}`}>
-                    {user.avatar_url ? (
-                      <div className="size-4 overflow-hidden rounded-full">
-                        <img
+                  <a
+                    href={`/chat/${user.id}`}
+                    className="flex items-center gap-2"
+                  >
+                    <Avatar className="size-5">
+                      {user.avatar_url ? (
+                        <AvatarImage
                           src={user.avatar_url}
                           alt={user.username}
-                          className="size-full object-cover"
                         />
-                      </div>
-                    ) : (
-                      <div className="flex size-4 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-xs font-medium">
-                        {user.username.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                      ) : (
+                        <AvatarFallback className="rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
+                          {user.username.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
                     <span>{user.full_name || user.username}</span>
                   </a>
                 </SidebarMenuButton>
