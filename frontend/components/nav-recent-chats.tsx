@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { User } from 'lucide-react';
-
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { getUserConversations } from '@/lib/api';
 
 interface ConversationUser {
   id: number;
@@ -23,28 +24,23 @@ interface ConversationUser {
 
 export function NavRecentChats() {
   const { token } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [conversations, setConversations] = useState<ConversationUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Get the current active chat user ID from the URL
+  const activeChatId = pathname?.startsWith('/chat/')
+    ? parseInt(pathname.split('/')[2])
+    : null;
 
   useEffect(() => {
     const fetchConversations = async () => {
       if (!token) return;
 
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/direct-messages/conversations`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch conversations');
-        }
-
-        const data = await response.json();
+        setIsLoading(true);
+        const data = await getUserConversations(token);
         setConversations(data);
       } catch (error) {
         console.error('Error fetching conversations:', error);
@@ -54,7 +50,16 @@ export function NavRecentChats() {
     };
 
     fetchConversations();
+
+    // Set up periodic refresh
+    const intervalId = setInterval(fetchConversations, 60000); // Refresh every minute
+
+    return () => clearInterval(intervalId);
   }, [token]);
+
+  const handleChatSelect = (userId: number) => {
+    router.push(`/chat/${userId}`);
+  };
 
   if (isLoading) {
     return (
@@ -65,7 +70,7 @@ export function NavRecentChats() {
             {[1, 2, 3].map((_, index) => (
               <SidebarMenuItem key={index}>
                 <SidebarMenuButton disabled>
-                  <Avatar className="size-4">
+                  <Avatar className="size-5">
                     <AvatarFallback className="rounded-full">
                       <div
                         className="animate-pulse rounded-full bg-muted"
@@ -89,11 +94,14 @@ export function NavRecentChats() {
       <SidebarGroupContent>
         <SidebarMenu>
           {conversations.length > 0 ? (
-            conversations.map((user) => (
-              <SidebarMenuItem key={user.id}>
-                <SidebarMenuButton asChild>
-                  <a
-                    href={`/chat/${user.id}`}
+            conversations.map((user) => {
+              const isActive = activeChatId === user.id;
+
+              return (
+                <SidebarMenuItem key={user.id}>
+                  <SidebarMenuButton
+                    isActive={isActive}
+                    onClick={() => handleChatSelect(user.id)}
                     className="flex items-center gap-2"
                   >
                     <Avatar className="size-5">
@@ -109,10 +117,10 @@ export function NavRecentChats() {
                       )}
                     </Avatar>
                     <span>{user.full_name || user.username}</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })
           ) : (
             <SidebarMenuItem>
               <SidebarMenuButton disabled>
