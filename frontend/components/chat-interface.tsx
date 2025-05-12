@@ -1,41 +1,31 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
 import { Send } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useRef, useState } from 'react';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getDirectMessages, sendDirectMessage } from '@/lib/api';
-
-interface Message {
-  id: number;
-  content: string;
-  created_at: string;
-  sender_id: number;
-  receiver_id: number;
-  is_read: boolean;
-  sender?: {
-    id: number;
-    username: string;
-    avatar_url?: string;
-    full_name?: string;
-  };
-}
+import { useAuth } from '@/contexts/AuthContext';
+import { getDirectMessages, getWsBaseUrl, sendDirectMessage } from '@/lib/api';
+import { ChatUser, Message } from '@/lib/types';
 
 interface ChatInterfaceProps {
   userId: number;
+  chatUser: ChatUser;
 }
 
-export function ChatInterface({ userId }: ChatInterfaceProps) {
+export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
   const { user, token } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const websocketRef = useRef<WebSocket | null>(null);
 
   // Function to format timestamp
   const formatTimestamp = (timestamp: string) => {
@@ -48,33 +38,127 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
     return name.charAt(0).toUpperCase();
   };
 
-  // Fetch messages
+  // Initialize WebSocket connection
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!token || !userId) {
-        setIsLoading(false);
-        return;
+    if (!token || !userId || !user) return;
+
+    const wsBaseUrl = getWsBaseUrl();
+    const wsUrl = `${wsBaseUrl}/direct-messages/ws/?token=${token}`;
+
+    const setupWebSocket = () => {
+      const ws = new WebSocket(wsUrl);
+      websocketRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setWsConnected(true);
+        setError(null);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'new_message') {
+            const receivedMessage = data.data;
+
+            // Only add the message if it's part of this conversation
+            if (
+              (receivedMessage.sender_id === userId &&
+                receivedMessage.receiver_id === user.id) ||
+              (receivedMessage.sender_id === user.id &&
+                receivedMessage.receiver_id === userId)
+            ) {
+              // Add message to state if it's not already there
+              setMessages((prevMessages) => {
+                // Don't add duplicate messages
+                if (
+                  !prevMessages.some((msg) => msg.id === receivedMessage.id)
+                ) {
+                  return [
+                    ...prevMessages,
+                    {
+                      ...receivedMessage,
+                      sender:
+                        receivedMessage.sender_id === user.id
+                          ? user
+                          : receivedMessage.sender,
+                    },
+                  ];
+                }
+                return prevMessages;
+              });
+            }
+          } else if (data.error) {
+            console.error('WebSocket error:', data.error);
+            setError(`WebSocket error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      ws.onerror = (event) => {
+        console.error('WebSocket error:', event);
+        setError('WebSocket connection error. Please reload the page.');
+        setWsConnected(false);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setWsConnected(false);
+
+        // Attempt to reconnect after a delay
+        setTimeout(() => {
+          if (document.visibilityState !== 'hidden') {
+            setupWebSocket();
+          }
+        }, 3000);
+      };
+
+      return ws;
+    };
+
+    const ws = setupWebSocket();
+
+    // Handle page visibility changes to reconnect when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === 'visible' &&
+        !websocketRef.current?.OPEN
+      ) {
+        setupWebSocket();
       }
-      setIsLoading(true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Initial fetch of messages
+    const fetchInitialMessages = async () => {
       try {
-        console.log('Fetching messages for user:', userId);
+        console.log('Fetching initial messages for user:', userId);
         const data = await getDirectMessages(Number(userId), token);
         console.log('Received messages:', data?.length || 0);
         setMessages(data || []);
         setIsLoading(false);
-        setError(null);
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('Error fetching initial messages:', error);
         setError('Failed to load messages. Please try again.');
         setIsLoading(false);
       }
     };
 
-    fetchMessages();
-    const intervalId = setInterval(fetchMessages, 5000);
+    fetchInitialMessages();
 
-    return () => clearInterval(intervalId);
-  }, [token, userId]);
+    // Clean up function
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (websocketRef.current) {
+        websocketRef.current.close();
+        websocketRef.current = null;
+      }
+    };
+  }, [token, userId, user]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -89,16 +173,15 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
   // Send new message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !token || !user) return;
+    if (!newMessage.trim() || !token || !user || !userId) return;
 
-    const receiverId = Number(userId);
     const tempId = Date.now();
     const tempMessage = {
       id: tempId,
       content: newMessage,
       created_at: new Date().toISOString(),
       sender_id: user.id,
-      receiver_id: receiverId,
+      receiver_id: userId,
       is_read: false,
       sender: {
         id: user.id,
@@ -106,19 +189,41 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
         avatar_url: user.avatar_url,
         full_name: user.full_name,
       },
-      pending: true,
-    } as Message & { pending?: boolean };
+    } as Message;
 
+    // Add to messages immediately for UI feedback
     setMessages((prevMessages) => [...prevMessages, tempMessage]);
     setNewMessage('');
 
+    // If WebSocket is connected, send via WebSocket
+    if (websocketRef.current?.readyState === WebSocket.OPEN) {
+      try {
+        websocketRef.current.send(
+          JSON.stringify({
+            receiver_id: userId,
+            content: newMessage,
+          }),
+        );
+        // Message sent via WebSocket, no need to do anything else
+      } catch (error) {
+        console.error('Error sending message via WebSocket:', error);
+
+        // Fallback to HTTP method
+        sendMessageViaHTTP(tempId, newMessage);
+      }
+    } else {
+      // WebSocket is not connected, use HTTP
+      sendMessageViaHTTP(tempId, newMessage);
+    }
+  };
+
+  // Fallback to HTTP method if WebSocket fails
+  const sendMessageViaHTTP = async (tempId: number, content: string) => {
     try {
-      console.log('Sending message to user:', receiverId);
-      const sentMessage = await sendDirectMessage(
-        newMessage,
-        receiverId,
-        token,
-      );
+      if (!token || !user) return;
+
+      console.log('Sending message via HTTP to user:', userId);
+      const sentMessage = await sendDirectMessage(content, userId, token);
       console.log('Message sent successfully:', sentMessage?.id);
 
       sentMessage.sender = {
@@ -128,6 +233,7 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
         full_name: user.full_name,
       };
 
+      // Update the message in state with server-generated ID
       setMessages((prevMessages) =>
         prevMessages.map((msg) => (msg.id === tempId ? sentMessage : msg)),
       );
@@ -135,7 +241,7 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
       console.error('Error sending message:', error);
       setMessages((prevMessages) =>
         prevMessages.map((msg) =>
-          msg.id === tempId ? { ...msg, failed: true, pending: false } : msg,
+          msg.id === tempId ? { ...msg, failed: true } : msg,
         ),
       );
       setError('Failed to send message. Please try again.');
@@ -147,6 +253,23 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
     return user && message.sender_id === user.id;
   };
 
+  // Handle retry for failed messages
+  const handleRetryMessage = (message: Message & { failed?: boolean }) => {
+    if (!message.failed) return;
+
+    // Remove the failed message
+    setMessages((prevMessages) =>
+      prevMessages.filter((msg) => msg.id !== message.id),
+    );
+
+    // Create a new message with the same content
+    const content = message.content;
+    setNewMessage(content);
+
+    // Focus on the input
+    document.querySelector('input')?.focus();
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -155,16 +278,20 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-destructive">{error}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-full flex-col">
+      {!wsConnected && (
+        <div className="bg-amber-100 p-2 text-amber-800 text-sm text-center">
+          Currently using offline mode. Reconnecting...
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-100 p-2 text-red-800 text-sm text-center">
+          {error}
+        </div>
+      )}
+
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="flex flex-col gap-4">
           {messages.length === 0 ? (
@@ -178,15 +305,11 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
               const isCurrentUser = isCurrentUserMessage(message);
               const senderName = isCurrentUser
                 ? user?.full_name || user?.username || 'You'
-                : message.sender?.full_name ||
-                  message.sender?.username ||
-                  'User';
+                : chatUser?.full_name || chatUser?.username || 'User';
               const avatarUrl = isCurrentUser
                 ? user?.avatar_url
-                : message.sender?.avatar_url;
+                : chatUser?.avatar_url;
 
-              const isPending =
-                'pending' in message && message.pending === true;
               const isFailed = 'failed' in message && message.failed === true;
 
               return (
@@ -215,7 +338,6 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatTimestamp(message.created_at)}
-                        {isPending && ' (sending...)'}
                         {isFailed && ' (failed)'}
                       </span>
                     </div>
@@ -223,12 +345,21 @@ export function ChatInterface({ userId }: ChatInterfaceProps) {
                       className={`mt-1 px-3 py-2 ${
                         isCurrentUser
                           ? isFailed
-                            ? 'bg-destructive/10 text-destructive'
+                            ? 'bg-destructive/10 text-destructive cursor-pointer'
                             : 'bg-primary text-primary-foreground'
                           : 'bg-muted'
                       }`}
+                      onClick={() =>
+                        isFailed &&
+                        handleRetryMessage(
+                          message as Message & { failed: boolean },
+                        )
+                      }
                     >
                       {message.content}
+                      {isFailed && (
+                        <div className="text-xs mt-1">Click to retry</div>
+                      )}
                     </Card>
                   </div>
                 </div>

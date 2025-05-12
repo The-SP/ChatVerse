@@ -1,27 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ChatInterface } from '@/components/chat-interface';
+import { useEffect, useState } from 'react';
+
 import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { ChatInterface } from '@/components/chat-interface';
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
+    Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage
 } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserProfile } from '@/lib/api';
-
-interface ChatUser {
-  id: number;
-  username: string;
-  full_name?: string;
-  avatar_url?: string;
-}
+import { ChatUser } from '@/lib/types';
 
 export default function ChatPage() {
   const params = useParams<{ user_id: string }>();
@@ -37,6 +28,7 @@ export default function ChatPage() {
 
       try {
         const userData = await getUserProfile(parseInt(userId), token);
+        console.log(userData)
         setChatUser(userData);
       } catch (error) {
         console.error('Error fetching user details:', error);
@@ -71,9 +63,11 @@ export default function ChatPage() {
             </Breadcrumb>
           </div>
         </header>
-        <div className="flex flex-1 flex-col">
-          <ChatInterface userId={parseInt(userId)} />
-        </div>
+        {chatUser && (
+          <div className="flex flex-1 flex-col">
+            <ChatInterface userId={parseInt(userId)} chatUser={chatUser} />
+          </div>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
