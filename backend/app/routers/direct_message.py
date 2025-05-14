@@ -10,7 +10,7 @@ from fastapi import (
     status,
 )
 from jose import jwt
-from sqlalchemy.future import select
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..auth.jwt import get_current_user
@@ -165,30 +165,31 @@ async def get_user_conversations(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get a list of users the current user has exchanged messages with
+    Get a list of users the current user has exchanged messages with,
+    ordered by the timestamp of the most recent message.
     """
-    # Get users who sent messages to current_user
-    senders = (
-        db.query(User)
-        .join(DirectMessage, DirectMessage.sender_id == User.id)
-        .filter(DirectMessage.receiver_id == current_user.id)
-        .distinct()
-        .all()
+    stmt = text(
+        """
+        WITH LastMessages AS (
+            SELECT 
+                CASE 
+                    WHEN sender_id = :current_user_id THEN receiver_id 
+                    ELSE sender_id 
+                END AS user_id,
+                MAX(created_at) AS last_message_time
+            FROM direct_messages
+            WHERE sender_id = :current_user_id OR receiver_id = :current_user_id
+            GROUP BY user_id
+        )
+        SELECT u.*
+        FROM users u
+        JOIN LastMessages lm ON u.id = lm.user_id
+        ORDER BY lm.last_message_time DESC
+    """
     )
 
-    # Get users who received messages from current_user
-    receivers = (
-        db.query(User)
-        .join(DirectMessage, DirectMessage.receiver_id == User.id)
-        .filter(DirectMessage.sender_id == current_user.id)
-        .distinct()
-        .all()
-    )
-
-    # Combine and deduplicate
-    user_ids = set([user.id for user in senders + receivers])
-    users = db.query(User).filter(User.id.in_(user_ids)).all()
-
+    result = db.execute(stmt, {"current_user_id": current_user.id})
+    users = [User(**row._mapping) for row in result]
     return users
 
 
@@ -242,7 +243,9 @@ async def get_unread_count(
 
 
 # Function to authenticate WebSocket connections
-async def get_user_from_token(websocket: WebSocket, token: str, db: Session = Depends(get_db)):
+async def get_user_from_token(
+    websocket: WebSocket, token: str, db: Session = Depends(get_db)
+):
     try:
         # Use the same JWT decoding logic from your jwt.py
         payload = jwt.decode(
