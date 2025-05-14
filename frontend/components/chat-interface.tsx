@@ -25,6 +25,7 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const websocketRef = useRef<WebSocket | null>(null);
 
   // Function to format timestamp
@@ -36,6 +37,11 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
   // Function to get initials for avatar fallback
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
+  };
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // Initialize WebSocket connection
@@ -162,12 +168,7 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
+    scrollToBottom();
   }, [messages]);
 
   // Send new message
@@ -366,6 +367,8 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
               );
             })
           )}
+          {/* This is the div that we'll scroll to */}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
