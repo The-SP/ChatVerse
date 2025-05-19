@@ -119,3 +119,38 @@ export const getUnreadMessageCount = (token: string) => {
     token,
   );
 };
+
+export const searchUsers = async (
+  query: string,
+  token: string,
+  limit: number = 10,
+) => {
+  if (!query || !query.trim()) {
+    return [];
+  }
+
+  try {
+    // Ensure query is properly sanitized and encoded
+    const sanitizedQuery = encodeURIComponent(query.trim());
+
+    const users = await apiFetch<
+      Array<{
+        id: number;
+        username: string;
+        full_name?: string;
+        avatar_url?: string;
+        email?: string;
+      }>
+    >(
+      `/users/search/?query=${sanitizedQuery}&limit=${limit}`,
+      { method: 'GET' },
+      token,
+    );
+
+    return Array.isArray(users) ? users : [];
+  } catch (error) {
+    console.error('Error searching users:', error);
+    // Return empty array instead of throwing to avoid breaking the UI
+    return [];
+  }
+};
