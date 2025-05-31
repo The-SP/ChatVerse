@@ -1,10 +1,11 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useChat } from '@/contexts/ChatContext';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { searchUsers } from '@/lib/api';
+import { searchUsers, getUserProfile } from '@/lib/api';
 import { SearchUser } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ import {
 
 export function UserSearch() {
   const { token } = useAuth();
+  const { addToRecentChats } = useChat();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,12 +52,6 @@ export function UserSearch() {
       setIsLoading(true);
       try {
         const data = await searchUsers(searchQuery, token);
-        console.log('Search results:', data);
-        console.log('Search results length:', data.length);
-        // Check the data structure
-        if (data && data.length > 0) {
-          console.log('First user:', data[0]);
-        }
         setUsers(data || []);
       } catch (error) {
         console.error('Error searching users:', error);
@@ -71,10 +67,22 @@ export function UserSearch() {
     };
   }, [searchQuery, token]);
 
-  const handleUserSelect = (userId: number) => {
-    router.push(`/chat/${userId}`);
-    setOpen(false);
-    setSearchQuery('');
+  const handleUserSelect = async (userId: number) => {
+    try {
+      // Get the full user profile before navigating
+      if (token) {
+        const userProfile = await getUserProfile(userId, token);
+        // Add the selected user to recent chats - only do this once per selection
+        addToRecentChats(userProfile);
+      }
+
+      // Navigate to the chat with the selected user
+      router.push(`/chat/${userId}`);
+      setOpen(false);
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Error selecting user:', error);
+    }
   };
 
   // Get initials for avatar fallback
@@ -100,7 +108,6 @@ export function UserSearch() {
               placeholder="Search users..."
               value={searchQuery}
               onValueChange={(value) => {
-                console.log('Search query changed:', value);
                 setSearchQuery(value);
               }}
               className="h-9"

@@ -1,9 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { User } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   SidebarGroup,
@@ -13,55 +11,23 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { getUserConversations } from '@/lib/api';
-
-interface ConversationUser {
-  id: number;
-  username: string;
-  avatar_url?: string;
-  full_name?: string;
-}
+import { useChat } from '@/contexts/ChatContext';
 
 export function NavRecentChats() {
-  const { token } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [conversations, setConversations] = useState<ConversationUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { recentChats, isLoadingChats } = useChat();
 
   // Get the current active chat user ID from the URL
   const activeChatId = pathname?.startsWith('/chat/')
     ? parseInt(pathname.split('/')[2])
     : null;
 
-  useEffect(() => {
-    const fetchConversations = async () => {
-      if (!token) return;
-
-      try {
-        setIsLoading(true);
-        const data = await getUserConversations(token);
-        setConversations(data);
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchConversations();
-
-    // Set up periodic refresh
-    const intervalId = setInterval(fetchConversations, 60000); // Refresh every minute
-
-    return () => clearInterval(intervalId);
-  }, [token]);
-
   const handleChatSelect = (userId: number) => {
     router.push(`/chat/${userId}`);
   };
 
-  if (isLoading) {
+  if (isLoadingChats) {
     return (
       <SidebarGroup>
         <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
@@ -93,8 +59,8 @@ export function NavRecentChats() {
       <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {conversations.length > 0 ? (
-            conversations.map((user) => {
+          {recentChats.length > 0 ? (
+            recentChats.map((user) => {
               const isActive = activeChatId === user.id;
 
               return (

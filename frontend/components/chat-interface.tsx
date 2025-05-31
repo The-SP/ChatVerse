@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChat } from '@/contexts/ChatContext';
 import { getDirectMessages, getWsBaseUrl, sendDirectMessage } from '@/lib/api';
 import { ChatUser, Message } from '@/lib/types';
 
@@ -19,6 +20,7 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
   const { user, token } = useAuth();
+  const { addToRecentChats } = useChat();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +58,7 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
       websocketRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected for user:', userId);
         setWsConnected(true);
         setError(null);
       };
@@ -105,8 +107,8 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
       };
 
       ws.onerror = (event) => {
-        console.error('WebSocket error:', event);
-        setError('WebSocket connection error. Please reload the page.');
+        console.error('WebSocket error for user:', userId, event);
+        setError('Connection error. Try refreshing the page.');
         setWsConnected(false);
       };
 
@@ -176,6 +178,11 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
     e.preventDefault();
     if (!newMessage.trim() || !token || !user || !userId) return;
 
+    // Add chat user to recent chats when a message is sent
+    if (chatUser) {
+      addToRecentChats(chatUser);
+    }
+
     const tempId = Date.now();
     const tempMessage = {
       id: tempId,
@@ -205,7 +212,7 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
             content: newMessage,
           }),
         );
-        // Message sent via WebSocket, no need to do anything else
+        // No need to update the message since the server will echo it back via WebSocket
       } catch (error) {
         console.error('Error sending message via WebSocket:', error);
 
@@ -213,6 +220,7 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
         sendMessageViaHTTP(tempId, newMessage);
       }
     } else {
+      console.log('WebSocket not open, sending via HTTP');
       // WebSocket is not connected, use HTTP
       sendMessageViaHTTP(tempId, newMessage);
     }

@@ -6,10 +6,17 @@ import { useEffect, useState } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ChatInterface } from '@/components/chat-interface';
 import {
-    Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserProfile } from '@/lib/api';
 import { ChatUser } from '@/lib/types';
@@ -28,7 +35,7 @@ export default function ChatPage() {
 
       try {
         const userData = await getUserProfile(parseInt(userId), token);
-        console.log(userData)
+        console.log(userData);
         setChatUser(userData);
       } catch (error) {
         console.error('Error fetching user details:', error);
