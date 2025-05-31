@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from ..auth.jwt import get_current_user
 from ..config import settings
-from ..database import get_db
+from ..database import get_db, get_db_context, get_new_db_session
 from ..models.direct_message import DirectMessage
 from ..models.user import User
 from ..schemas.direct_message import DirectMessageCreate, DirectMessageResponse
@@ -233,21 +233,22 @@ async def get_unread_count(
     """
     count = (
         db.query(DirectMessage)
-        .filter(
-            DirectMessage.receiver_id == current_user.id, DirectMessage.is_read == False
-        )
+        .filter(DirectMessage.receiver_id == current_user.id, not DirectMessage.is_read)
         .count()
     )
 
     return {"unread_count": count}
 
 
-# Function to authenticate WebSocket connections
-async def get_user_from_token(
-    websocket: WebSocket, token: str, db: Session = Depends(get_db)
-):
+# Function to authenticate WebSocket connections - Fixed to not use Depends
+async def get_user_from_token(websocket: WebSocket, token: str):
+    """
+    Authenticate WebSocket connection using token.
+    This function creates its own database session to avoid connection pool issues.
+    """
+    db = None
     try:
-        # Use the same JWT decoding logic from your jwt.py
+        # Use the JWT decoding logic from jwt.py
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
@@ -256,6 +257,9 @@ async def get_user_from_token(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return None
 
+        # Create a new database session for this operation
+        db = get_new_db_session()
+
         # Get user from database
         user = db.query(User).filter(User.username == username).first()
         if user is None or not user.is_active:
@@ -263,25 +267,27 @@ async def get_user_from_token(
             return None
 
         return user
-    except Exception as e:
+    except Exception:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return None
+    finally:
+        # Always close the database session
+        if db:
+            db.close()
 
 
 # WebSocket route for real-time messaging
 @router.websocket("/ws/")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    token: str,
-    db: Session = Depends(get_db),
-):
+async def websocket_endpoint(websocket: WebSocket, token: str):
     # Authenticate the connection
-    user = await get_user_from_token(websocket, token, db)
+    user = await get_user_from_token(websocket, token)
     if not user:
         # If authentication fails
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
+
     user_id = user.id
+
     # Connect using the connection manager
     await manager.connect(user_id, websocket)
 
@@ -298,48 +304,54 @@ async def websocket_endpoint(
             receiver_id = int(data["receiver_id"])
             content = data["content"]
 
-            # Create and save the message to the database
-            db_message = DirectMessage(
-                content=content,
-                sender_id=user_id,
-                receiver_id=receiver_id,
-                created_at=datetime.now(),
-            )
-            db.add(db_message)
-            db.commit()
-            db.refresh(db_message)
+            # Use context manager for database operations
+            try:
+                with get_db_context() as db:
+                    # Create and save the message to the database
+                    db_message = DirectMessage(
+                        content=content,
+                        sender_id=user_id,
+                        receiver_id=receiver_id,
+                        created_at=datetime.now(),
+                    )
+                    db.add(db_message)
+                    db.flush()  # Flush to get the ID without committing
 
-            # Prepare message data to send
-            message_data = {
-                "id": db_message.id,
-                "content": db_message.content,
-                "created_at": db_message.created_at.isoformat(),
-                "is_read": db_message.is_read,
-                "sender_id": db_message.sender_id,
-                "receiver_id": db_message.receiver_id,
-            }
+                    # Prepare message data to send
+                    message_data = {
+                        "id": db_message.id,
+                        "content": db_message.content,
+                        "created_at": db_message.created_at.isoformat(),
+                        "is_read": db_message.is_read,
+                        "sender_id": db_message.sender_id,
+                        "receiver_id": db_message.receiver_id,
+                    }
 
-            # Send to the receiver if they are connected
-            was_delivered = await manager.send_personal_message(
-                message={"type": "new_message", "data": message_data},
-                user_id=receiver_id,
-            )
+                    # Send to the receiver if they are connected
+                    was_delivered = await manager.send_personal_message(
+                        message={"type": "new_message", "data": message_data},
+                        user_id=receiver_id,
+                    )
 
-            # Send confirmation back to the sender
-            await websocket.send_json(
-                {
-                    "type": "message_status",
-                    "data": {
-                        "status": "delivered" if was_delivered else "sent",
-                        "message": message_data,
-                    },
-                }
-            )
+                    # Send confirmation back to the sender
+                    await websocket.send_json(
+                        {
+                            "type": "message_status",
+                            "data": {
+                                "status": "delivered" if was_delivered else "sent",
+                                "message": message_data,
+                            },
+                        }
+                    )
+
+            except Exception as db_error:
+                print(f"Database error in WebSocket: {db_error}")
+                await websocket.send_json({"error": "Failed to save message"})
 
     except WebSocketDisconnect:
         # Remove the connection when client disconnects
         manager.disconnect(user_id)
-    except Exception as e:
+    except Exception:
         # Handle any other exceptions
         manager.disconnect(user_id)
         await websocket.close()
