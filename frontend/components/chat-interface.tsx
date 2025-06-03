@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
-import { getDirectMessages, getWsBaseUrl, sendDirectMessage } from '@/lib/api';
+import { getDirectMessages, sendDirectMessage } from '@/lib/api';
 import { ChatUser, Message } from '@/lib/types';
 
 interface ChatInterfaceProps {
@@ -20,15 +20,15 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
   const { user, token } = useAuth();
-  const { addToRecentChats } = useChat();
+  const { addToRecentChats, wsConnected, sendMessage, subscribeToMessages } =
+    useChat();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [wsConnected, setWsConnected] = useState(false);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const websocketRef = useRef<WebSocket | null>(null);
 
   // Function to format timestamp
   const formatTimestamp = (timestamp: string) => {
@@ -46,127 +46,64 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Initialize WebSocket connection
+  // Check if a message is from the current user
+  const isCurrentUserMessage = (message: Message) => {
+    return user && message.sender_id === user.id;
+  };
+
+  // Load initial messages when component mounts or userId changes
   useEffect(() => {
-    if (!token || !userId || !user) return;
-
-    const wsBaseUrl = getWsBaseUrl();
-    const wsUrl = `${wsBaseUrl}/direct-messages/ws/?token=${token}`;
-
-    const setupWebSocket = () => {
-      const ws = new WebSocket(wsUrl);
-      websocketRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('WebSocket connected for user:', userId);
-        setWsConnected(true);
-        setError(null);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === 'new_message') {
-            const receivedMessage = data.data;
-
-            // Only add the message if it's part of this conversation
-            if (
-              (receivedMessage.sender_id === userId &&
-                receivedMessage.receiver_id === user.id) ||
-              (receivedMessage.sender_id === user.id &&
-                receivedMessage.receiver_id === userId)
-            ) {
-              // Add message to state if it's not already there
-              setMessages((prevMessages) => {
-                // Don't add duplicate messages
-                if (
-                  !prevMessages.some((msg) => msg.id === receivedMessage.id)
-                ) {
-                  return [
-                    ...prevMessages,
-                    {
-                      ...receivedMessage,
-                      sender:
-                        receivedMessage.sender_id === user.id
-                          ? user
-                          : receivedMessage.sender,
-                    },
-                  ];
-                }
-                return prevMessages;
-              });
-            }
-          } else if (data.error) {
-            console.error('WebSocket error:', data.error);
-            setError(`WebSocket error: ${data.error}`);
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      ws.onerror = (event) => {
-        console.error('WebSocket error for user:', userId, event);
-        setError('Connection error. Try refreshing the page.');
-        setWsConnected(false);
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        setWsConnected(false);
-
-        // Attempt to reconnect after a delay
-        setTimeout(() => {
-          if (document.visibilityState !== 'hidden') {
-            setupWebSocket();
-          }
-        }, 3000);
-      };
-
-      return ws;
-    };
-
-    const ws = setupWebSocket();
-
-    // Handle page visibility changes to reconnect when tab becomes visible again
-    const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === 'visible' &&
-        !websocketRef.current?.OPEN
-      ) {
-        setupWebSocket();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Initial fetch of messages
     const fetchInitialMessages = async () => {
+      if (!token || !userId) return;
+
       try {
         console.log('Fetching initial messages for user:', userId);
+        setIsLoading(true);
+        setError(null);
+
         const data = await getDirectMessages(Number(userId), token);
         console.log('Received messages:', data?.length || 0);
         setMessages(data || []);
-        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching initial messages:', error);
         setError('Failed to load messages. Please try again.');
+      } finally {
         setIsLoading(false);
       }
     };
 
+    // Reset messages when switching to a new chat
+    setMessages([]);
     fetchInitialMessages();
+  }, [token, userId]);
 
-    // Clean up function
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (websocketRef.current) {
-        websocketRef.current.close();
-        websocketRef.current = null;
+  // Subscribe to new messages from the global WebSocket
+  useEffect(() => {
+    if (!user || !userId) return;
+
+    const handleNewMessage = (message: Message) => {
+      // Only add messages that are part of this conversation
+      const isPartOfConversation =
+        (message.sender_id === userId && message.receiver_id === user.id) ||
+        (message.sender_id === user.id && message.receiver_id === userId);
+
+      if (isPartOfConversation) {
+        setMessages((prevMessages) => {
+          // Don't add duplicate messages
+          if (!prevMessages.some((msg) => msg.id === message.id)) {
+            return [...prevMessages, message];
+          }
+          return prevMessages;
+        });
       }
     };
-  }, [token, userId, user]);
+
+    // Subscribe to messages
+    const unsubscribe = subscribeToMessages(handleNewMessage);
+
+    // Cleanup subscription when component unmounts or dependencies change
+    return unsubscribe;
+  }, [subscribeToMessages, userId, user]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -184,7 +121,7 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
     }
 
     const tempId = Date.now();
-    const tempMessage = {
+    const tempMessage: Message & { failed?: boolean } = {
       id: tempId,
       content: newMessage,
       created_at: new Date().toISOString(),
@@ -197,69 +134,49 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
         avatar_url: user.avatar_url,
         full_name: user.full_name,
       },
-    } as Message;
+    };
 
     // Add to messages immediately for UI feedback
     setMessages((prevMessages) => [...prevMessages, tempMessage]);
+    const messageContent = newMessage;
     setNewMessage('');
 
-    // If WebSocket is connected, send via WebSocket
-    if (websocketRef.current?.readyState === WebSocket.OPEN) {
+    // Try to send via WebSocket first
+    const sentViaWebSocket = await sendMessage(userId, messageContent);
+
+    if (!sentViaWebSocket) {
+      // Fallback to HTTP method
+      console.log('WebSocket not available, sending via HTTP');
       try {
-        websocketRef.current.send(
-          JSON.stringify({
-            receiver_id: userId,
-            content: newMessage,
-          }),
+        const sentMessage = await sendDirectMessage(
+          messageContent,
+          userId,
+          token,
         );
-        // No need to update the message since the server will echo it back via WebSocket
+
+        // Add sender info to the response
+        sentMessage.sender = {
+          id: user.id,
+          username: user.username,
+          avatar_url: user.avatar_url,
+          full_name: user.full_name,
+        };
+
+        // Update the message in state with server-generated ID
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => (msg.id === tempId ? sentMessage : msg)),
+        );
       } catch (error) {
-        console.error('Error sending message via WebSocket:', error);
-
-        // Fallback to HTTP method
-        sendMessageViaHTTP(tempId, newMessage);
+        console.error('Error sending message via HTTP:', error);
+        // Mark message as failed
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.id === tempId ? { ...msg, failed: true } : msg,
+          ),
+        );
+        setError('Failed to send message. Please try again.');
       }
-    } else {
-      console.log('WebSocket not open, sending via HTTP');
-      // WebSocket is not connected, use HTTP
-      sendMessageViaHTTP(tempId, newMessage);
     }
-  };
-
-  // Fallback to HTTP method if WebSocket fails
-  const sendMessageViaHTTP = async (tempId: number, content: string) => {
-    try {
-      if (!token || !user) return;
-
-      console.log('Sending message via HTTP to user:', userId);
-      const sentMessage = await sendDirectMessage(content, userId, token);
-      console.log('Message sent successfully:', sentMessage?.id);
-
-      sentMessage.sender = {
-        id: user.id,
-        username: user.username,
-        avatar_url: user.avatar_url,
-        full_name: user.full_name,
-      };
-
-      // Update the message in state with server-generated ID
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) => (msg.id === tempId ? sentMessage : msg)),
-      );
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === tempId ? { ...msg, failed: true } : msg,
-        ),
-      );
-      setError('Failed to send message. Please try again.');
-    }
-  };
-
-  // Check if a message is from the current user
-  const isCurrentUserMessage = (message: Message) => {
-    return user && message.sender_id === user.id;
   };
 
   // Handle retry for failed messages
@@ -271,12 +188,13 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
       prevMessages.filter((msg) => msg.id !== message.id),
     );
 
-    // Create a new message with the same content
-    const content = message.content;
-    setNewMessage(content);
+    // Set the content back to the input
+    setNewMessage(message.content);
 
     // Focus on the input
-    document.querySelector('input')?.focus();
+    setTimeout(() => {
+      document.querySelector('input')?.focus();
+    }, 0);
   };
 
   if (isLoading) {
@@ -298,6 +216,12 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
       {error && (
         <div className="bg-red-100 p-2 text-red-800 text-sm text-center">
           {error}
+          <button
+            onClick={() => setError(null)}
+            className="ml-2 text-red-600 hover:text-red-800"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -354,7 +278,7 @@ export function ChatInterface({ userId, chatUser }: ChatInterfaceProps) {
                       className={`mt-1 px-3 py-2 ${
                         isCurrentUser
                           ? isFailed
-                            ? 'bg-destructive/10 text-destructive cursor-pointer'
+                            ? 'bg-destructive/10 text-destructive cursor-pointer hover:bg-destructive/20'
                             : 'bg-primary text-primary-foreground'
                           : 'bg-muted'
                       }`}
