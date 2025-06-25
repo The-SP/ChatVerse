@@ -19,11 +19,11 @@ class DirectMessageResponse(DirectMessageBase):
     receiver_id: int
     created_at: datetime
     is_read: bool
-    
+
     # Include sender and receiver data in responses
     sender: Optional[UserResponse] = None
     receiver: Optional[UserResponse] = None
-    
+
     class Config:
         from_attributes = True
 
