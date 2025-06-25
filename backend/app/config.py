@@ -5,8 +5,14 @@ load_dotenv()
 
 
 class Settings:
-    APP_NAME: str = "FastAPI Social Auth"
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+    APP_NAME: str = "FastAPI Chat"
+
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
+    DB_USER: str = os.getenv("DB_USER", "postgres")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "postgres")
+    DB_NAME: str = os.getenv("DB_NAME", "chatapp")
+
     SECRET_KEY: str = os.getenv("SECRET_KEY")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

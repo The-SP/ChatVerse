@@ -9,23 +9,9 @@ from .logger import init_logger
 
 logger = init_logger(__name__)
 
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+SQLALCHEMY_DATABASE_URL = f"postgresql://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 
-# Improved connection pool settings
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args=(
-        {"check_same_thread": False}
-        if settings.DATABASE_URL.startswith("sqlite")
-        else {}
-    ),
-    # # Increase pool size for better concurrent handling
-    # pool_size=20,  # Number of connections to maintain in the pool
-    # max_overflow=30,  # Additional connections that can be created beyond pool_size
-    # pool_timeout=60,  # Timeout for getting connection from pool
-    # pool_recycle=3600,  # Recycle connections after 1 hour
-    # pool_pre_ping=True,  # Validate connections before use
-)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
