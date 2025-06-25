@@ -232,14 +232,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => {
       disconnectWebSocket();
     };
-  }, [token, user, connectWebSocket, disconnectWebSocket]);
+  }, [token, user]);
 
   // Fetch recent chats when token changes
   useEffect(() => {
     fetchRecentChats();
   }, [token]);
 
-  const addToRecentChats = (user: ChatUser) => {
+  const addToRecentChats = useCallback((user: ChatUser) => {
     setRecentChats((prevChats) => {
       // Check if the user already exists in the recent chats
       const existingIndex = prevChats.findIndex((chat) => chat.id === user.id);
@@ -259,11 +259,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return [user, ...prevChats];
       }
     });
-  };
+  }, []);
 
-  const refreshRecentChats = async () => {
+  const refreshRecentChats = useCallback(async () => {
     return fetchRecentChats();
-  };
+  }, [token]);
 
   return (
     <ChatContext.Provider

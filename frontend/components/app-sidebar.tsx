@@ -3,7 +3,6 @@
 import type * as React from 'react';
 import { MessageSquare } from 'lucide-react';
 
-import { NavMain } from './nav-main';
 import { NavRecentChats } from './nav-recent-chats';
 import { NavUser } from './nav-user';
 import { UserSearch } from './user-search';
@@ -16,32 +15,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-
-const data = {
-  navMain: [
-    {
-      title: 'general',
-      url: '#',
-      isActive: true,
-    },
-    {
-      title: 'random',
-      url: '#',
-    },
-    {
-      title: 'announcements',
-      url: '#',
-    },
-    {
-      title: 'development',
-      url: '#',
-    },
-    {
-      title: 'design',
-      url: '#',
-    },
-  ],
-};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -64,7 +37,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <UserSearch />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
         <NavRecentChats />
       </SidebarContent>
       <SidebarFooter>
