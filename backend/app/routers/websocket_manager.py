@@ -5,7 +5,10 @@ from jose import jwt
 
 from ..config import settings
 from ..database import get_new_db_session
+from ..logger import init_logger
 from ..models.user import User
+
+logger = init_logger(__name__)
 
 
 class ConnectionManager:
@@ -17,11 +20,13 @@ class ConnectionManager:
         """Register a new WebSocket connection for a user"""
         await websocket.accept()
         self.active_connections[user_id] = websocket
+        logger.info(f"WebSocket connected for user: {user_id}")
 
     def disconnect(self, user_id: int):
         """Remove a WebSocket connection for a user"""
         if user_id in self.active_connections:
             del self.active_connections[user_id]
+            logger.info(f"WebSocket disconnected for user: {user_id}")
 
     async def send_personal_message(self, message: dict, user_id: int):
         """Send a message to a specific user if they are connected"""
@@ -76,6 +81,7 @@ async def authenticate_websocket_user(
         )
         username: str = payload.get("sub")
         if username is None:
+            logger.warning("WebSocket authentication failed: No username in token")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return None
 
@@ -85,11 +91,13 @@ async def authenticate_websocket_user(
         # Get user from database
         user = db.query(User).filter(User.username == username).first()
         if user is None or not user.is_active:
+            logger.warning(f"WebSocket authentication failed: Invalid user {username}")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return None
 
         return user
-    except Exception:
+    except Exception as e:
+        logger.warning(f"WebSocket authentication failed: {str(e)}")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return None
     finally:

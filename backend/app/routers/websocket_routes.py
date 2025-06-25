@@ -3,9 +3,11 @@ from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..database import get_db_context
+from ..logger import init_logger
 from ..models.direct_message import DirectMessage
 from .websocket_manager import authenticate_websocket_user, connection_manager
 
+logger = init_logger(__name__)
 router = APIRouter()
 
 
@@ -81,13 +83,15 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
                     )
 
             except Exception as db_error:
-                print(f"Database error in WebSocket: {db_error}")
+                logger.error(
+                    f"Failed to save WebSocket message from user {user_id}: {str(db_error)}"
+                )
                 await websocket.send_json({"error": "Failed to save message"})
 
     except WebSocketDisconnect:
         # Remove the connection when client disconnects
         connection_manager.disconnect(user_id)
-    except Exception:
-        # Handle any other exceptions
+    except Exception as e:
+        logger.error(f"WebSocket error for user {user_id}: {str(e)}")
         connection_manager.disconnect(user_id)
         await websocket.close()

@@ -5,6 +5,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from .config import settings
+from .logger import init_logger
+
+logger = init_logger(__name__)
 
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
@@ -49,7 +52,8 @@ def get_db_context():
     try:
         yield db
         db.commit()
-    except Exception:
+    except Exception as e:
+        logger.error(f"Database transaction failed: {str(e)}")
         db.rollback()
         raise
     finally:
