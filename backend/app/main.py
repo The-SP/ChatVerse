@@ -5,7 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .config import settings
 from .database import Base, engine
 from .logger import init_logger
-from .routers import auth, direct_message, health, users, websocket_routes
+from .routers import auth, direct_message, health, users, websocket_routes, ai_summarizer
 
 logger = init_logger(__name__)
 
@@ -35,6 +35,7 @@ app.include_router(
 app.include_router(
     websocket_routes.router, prefix="/direct-messages", tags=["websockets"]
 )
+app.include_router(ai_summarizer.router, prefix="/ai", tags=["ai"])
 
 
 @app.get("/")
@@ -47,4 +48,7 @@ async def root():
             "google": "/auth/login/google",
         },
         "websocket_endpoint": "/direct-messages/ws/",
+        "ai_endpoints": {
+            "summarize": "/ai/summarize",
+        },
     }
