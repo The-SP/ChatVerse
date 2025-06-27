@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { AISummaryButton } from '@/components/ai-summary-button';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ChatInterface } from '@/components/chat-interface';
 import {
@@ -51,11 +52,11 @@ export default function ChatPage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 sticky top-0 z-10 bg-background">
-          <div className="flex items-center gap-2 px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 sticky top-0 z-10 bg-background border-b">
+          <div className="flex items-center gap-2 px-4 flex-1">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
+            <Breadcrumb className="flex-1">
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbPage>
@@ -68,6 +69,13 @@ export default function ChatPage() {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+            {chatUser && (
+              <AISummaryButton
+                chatUser={chatUser}
+                variant="ghost"
+                size="lg"
+              />
+            )}
           </div>
         </header>
         {chatUser && (

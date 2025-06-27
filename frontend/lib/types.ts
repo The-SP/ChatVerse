@@ -24,3 +24,13 @@ export interface SearchUser {
   avatar_url?: string;
   email?: string;
 }
+
+export interface SummarizeResponse {
+  success: boolean;
+  summary?: string;
+  message_count: number;
+  conversation_partner: string;
+  generated_at: string;
+  model_used: string;
+  error?: string;
+}

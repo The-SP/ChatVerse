@@ -154,3 +154,20 @@ export const searchUsers = async (
     return [];
   }
 };
+
+export const summarizeConversation = async (
+  request: {
+    other_user_id: number;
+    message_count?: number;
+  },
+  token: string,
+) => {
+  return apiFetch<any>(
+    '/ai/summarize',
+    {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+    token,
+  );
+};
